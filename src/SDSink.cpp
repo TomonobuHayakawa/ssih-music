@@ -13,6 +13,7 @@
 #include "WavReader.h"
 
 // #define DEBUG (1)
+// #define LOW_DELAY /*Must change to special package.*/
 
 // clang-format off
 #define nop(...) do {} while (0)
@@ -34,9 +35,14 @@ static const char kClassName[] = "SDSink";
 const int kPbSampleFrq = 48000;
 const int kPbBitDepth = 16;
 const int kPbChannelCount = 2;
+#if LOW_DELAY
+const int kPbSampleCount = 60;
+const int kPbCacheSize = (8 * 1024);
+#else
 const int kPbSampleCount = 240;
-const int kPbBlockSize = kPbSampleCount * (kPbBitDepth / 8) * kPbChannelCount;
 const int kPbCacheSize = (24 * 1024);
+#endif /* LOW_DELAY */
+const int kPbBlockSize = kPbSampleCount * (kPbBitDepth / 8) * kPbChannelCount;
 
 const int kDefaultOffset = 0;
 const int kVolumeMin = -1020;
@@ -249,6 +255,7 @@ bool SDSink::sendNoteOn(uint8_t note, uint8_t velocity, uint8_t channel) {
             update();
         }
     }
+    update();
     return true;
 }
 

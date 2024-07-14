@@ -195,10 +195,15 @@ bool PcmRenderer::render() {
     const int bytes_per_sample = (bit_depth_ / 8) * channels_;
     const size_t frame_size = bytes_per_sample * samples_per_frame_;
 
+	bool masks[mix_channels_];
     size_t read_size = frame_size;
     for (int i = 0; i < mix_channels_; i++) {
         if (states_[i] != kStateUnallocated) {
-            read_size = (read_size < getReadableSize(i) ? read_size : getReadableSize(i));
+        	if(read_size > getReadableSize(i)) {
+        		masks[i] = false;
+        	}else{
+        		masks[i] = true;
+        	}
         }
     }
     if (read_size < frame_size) {
@@ -233,12 +238,19 @@ bool PcmRenderer::render() {
         if (states_[i] == kStateUnallocated) {
             continue;
         }
-        read_size = (read_size < getReadableSize(i) ? read_size : getReadableSize(i));
-        if (bit_depth_ == 16) {
+
+        if (!masks[i]) {
+            continue;
+        }
+ 
+          read_size = (read_size < getReadableSize(i) ? read_size : getReadableSize(i));
+          if (bit_depth_ == 16) {
             size_t frame_sample_size = frame_size / 2;
             int16_t *dst = reinterpret_cast<int16_t *>(raw);
             int16_t src[frame_sample_size];
-            read(i, src, read_size);
+
+        	int sz = read(i, src, read_size);
+        	if(sz == 0) { return false; }
             if (states_[i] == kStateAllocated) {
                 for (size_t j = 0; j < frame_sample_size; j += 2) {
                     *((uint32_t *)&dst[j]) = __QADD16(*((uint32_t *)&dst[j]), *((uint32_t *)&src[j]));
@@ -258,6 +270,7 @@ bool PcmRenderer::render() {
         }
         if (states_[i] == kStateDeallocating) {
             states_[i] = kStateDeallocated;
+        	clear(i);
         }
         if (states_[i] == kStateDeallocated && getReadableSize(i) == 0) {
             states_[i] = kStateUnallocated;
